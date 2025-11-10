@@ -8,6 +8,7 @@
 
 use defmt::info;
 use esp_hal::clock::CpuClock;
+use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::main;
 use esp_hal::time::{Duration, Instant};
 use {esp_backtrace as _, esp_println as _};
@@ -23,13 +24,16 @@ fn main() -> ! {
     // generator version: 1.0.1
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
-    let _peripherals = esp_hal::init(config);
+    let peripherals = esp_hal::init(config);
+
+    let mut led = Output::new(peripherals.GPIO5, Level::Low, OutputConfig::default());
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 98768);
 
     loop {
         info!("Hello world!");
         let delay_start = Instant::now();
+        led.toggle();
         while delay_start.elapsed() < Duration::from_millis(500) {}
     }
 
