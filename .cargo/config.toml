@@ -1,0 +1,14 @@
+[target.xtensa-esp32-none-elf]
+runner = "espflash flash --monitor --chip esp32 --log-format defmt"
+
+[env]
+DEFMT_LOG = "info"
+LIBCLANG_PATH = "/Users/alxhill/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-20.1.1_20250829/esp-clang/lib"
+
+[build]
+rustflags = ["-C", "link-arg=-nostartfiles"]
+
+target = "xtensa-esp32-none-elf"
+
+[unstable]
+build-std = ["alloc", "core"]
