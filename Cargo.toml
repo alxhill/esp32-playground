@@ -10,7 +10,9 @@ path = "./src/bin/main.rs"
 
 [dependencies]
 esp-hal = { version = "1.0.0", features = ["defmt", "esp32", "unstable"] }
+embedded-hal = "1"
 
+segment-rs = { git = "https://github.com/alxhill/segment-rs.git" }
 
 defmt                  = "1.0.1"
 esp-bootloader-esp-idf = { version = "0.4.0", features = ["defmt", "esp32"] }
