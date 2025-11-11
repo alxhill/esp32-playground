@@ -6,7 +6,10 @@
     holding buffers for the duration of a data transfer."
 )]
 
+use core::cell::RefCell;
+
 use defmt::info;
+use embedded_hal_bus::i2c::RefCellDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::i2c::master::I2c;
@@ -39,19 +42,26 @@ fn main() -> ! {
         .expect("failed to initialize I2C")
         .with_sda(peripherals.GPIO21)
         .with_scl(peripherals.GPIO22);
+    let mut i2c_cell = RefCell::new(i2c);
 
     info!("i2c created");
 
-    let mut accel = Accel::new(i2c, ACCEL_ADDR);
+    let mut accel = Accel::new(RefCellDevice::new(&i2c_cell), ACCEL_ADDR);
     accel
-        .init(Scale::Scale2G, OutputDataRate::Odr100)
+        .init(Scale::Scale8G, OutputDataRate::Odr100)
         .expect("failed to initialize accelerometer");
 
-    // let mut seg = segment_rs::SevenSeg::init(i2c, 0x70, 15);
+    let mut seg = segment_rs::SevenSeg::init(RefCellDevice::new(&i2c_cell), 0x70, 15);
 
     loop {
-        let x = accel.get_x().unwrap_or(-1);
-        info!("x: {}", x);
+        let (x, y, z) = accel.get_xyz().unwrap();
+        info!("x: {}, y: {}, z: {}", x.0, y.0, z.0);
+
+        seg.write_int(x.0 as u16);
+
+        if let Some(tap) = accel.read_tap().unwrap() {
+            info!("tap detected: {:?}", tap);
+        }
 
         let delay_start = Instant::now();
         while delay_start.elapsed() < Duration::from_millis(100) {}

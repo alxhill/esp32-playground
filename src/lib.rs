@@ -1,6 +1,6 @@
 #![no_std]
 
-use embedded_hal::i2c::{Error, ErrorKind, I2c};
+use embedded_hal::i2c::I2c;
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -58,6 +58,16 @@ pub enum Scale {
     Scale8G = 0b10,
 }
 
+impl Scale {
+    pub fn factor(&self) -> f32 {
+        match self {
+            Scale::Scale2G => 2.0,
+            Scale::Scale4G => 4.0,
+            Scale::Scale8G => 8.0,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum OutputDataRate {
     Odr800,
@@ -70,49 +80,40 @@ pub enum OutputDataRate {
     Odr1,
 }
 
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
+pub struct UnscaledVal(pub i16);
+
+impl From<&[u8; 2]> for UnscaledVal {
+    fn from(bytes: &[u8; 2]) -> Self {
+        UnscaledVal((bytes[0] as i16) << 8 | (bytes[1] as i16 >> 4))
+    }
+}
+
+impl UnscaledVal {
+    pub fn to_scaled(&self, scale: Scale) -> ScaledVal {
+        ScaledVal(self.0 as f32 / (1 << 11) as f32 * scale.factor())
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+pub struct ScaledVal(pub f32);
+
 pub struct Accel<I2C: embedded_hal::i2c::I2c> {
     addr: u8,
+    scale: Scale,
     i2c: I2C,
 }
 
 impl<I2C: I2c> Accel<I2C> {
     pub fn new(i2c: I2C, addr: u8) -> Self {
-        Accel { i2c, addr }
+        Accel {
+            i2c,
+            addr,
+            scale: Scale::Scale2G,
+        }
     }
-
-    /*
-    byte MMA8452Q::init(MMA8452Q_Scale fsr, MMA8452Q_ODR odr)
-    {
-    scale = fsr; // Haul fsr into our class variable, scale
-
-    if (_i2cPort == NULL)
-    {
-        _i2cPort = &Wire;
-    }
-
-    _i2cPort->begin(); // Initialize I2C
-
-    byte c = readRegister(WHO_AM_I); // Read WHO_AM_I register
-
-    if (c != 0x2A) // WHO_AM_I should always be 0x2A
-    {
-        return 0;
-    }
-
-    standby(); // Must be in standby to change registers
-
-    setScale(scale);  // Set up accelerometer scale
-    setDataRate(odr); // Set up output data rate
-    setupPL();		  // Set up portrait/landscape detection
-    // Multiply parameter by 0.0625g to calculate threshold.
-    setupTap(0x80, 0x80, 0x08); // Disable x, y, set z to 0.5g
-
-    active(); // Set to active to start reading
-
-    return 1;
-    }
-     *
-     */
 
     pub fn init(&mut self, scale: Scale, odr: OutputDataRate) -> Result<(), I2C::Error> {
         if self.read_register(Register::WHO_AM_I)? != 0x2A {
@@ -124,19 +125,54 @@ impl<I2C: I2c> Accel<I2C> {
         self.set_scale(scale)?;
         self.set_data_rate(odr)?;
 
-        // todo: set pl + tap
+        self.setup_pl()?;
+        self.setup_tap(0x08, 0x08, 0x08)?;
 
         Ok(())
     }
 
-    pub fn get_x(&mut self) -> Result<i16, I2C::Error> {
-        let mut raw = [0u8; 2];
+    pub fn get_x(&mut self) -> Result<UnscaledVal, I2C::Error> {
+        let mut data = [0u8; 2];
         // reads both OUT_X_MSB and OUT_X_LSB registers
+        self.read_registers(Register::OUT_X_MSB, &mut data)?;
+        Ok((&data).into())
+    }
+
+    pub fn get_y(&mut self) -> Result<UnscaledVal, I2C::Error> {
+        let mut raw = [0u8; 2];
+        // reads both OUT_Y_MSB and OUT_Y_LSB registers
+        self.read_registers(Register::OUT_Y_MSB, &mut raw)?;
+        Ok((&raw).into())
+    }
+
+    pub fn get_z(&mut self) -> Result<UnscaledVal, I2C::Error> {
+        let mut raw = [0u8; 2];
+        // reads both OUT_Z_MSB and OUT_Z_LSB registers
+        self.read_registers(Register::OUT_Z_MSB, &mut raw)?;
+        Ok((&raw).into())
+    }
+
+    pub fn get_xyz(&mut self) -> Result<(UnscaledVal, UnscaledVal, UnscaledVal), I2C::Error> {
+        let mut raw = [0u8; 6];
+        // reads XYZ registers starting from OUT_X_MSB
         self.read_registers(Register::OUT_X_MSB, &mut raw)?;
-        Ok((raw[0] as i16) << 8 | (raw[1] as i16 >> 4))
+        let x: &[u8; 2] = raw[0..2].try_into().unwrap();
+        let y: &[u8; 2] = raw[2..4].try_into().unwrap();
+        let z: &[u8; 2] = raw[4..6].try_into().unwrap();
+        Ok((x.into(), y.into(), z.into()))
+    }
+
+    pub fn get_xyz_scaled(&mut self) -> Result<(ScaledVal, ScaledVal, ScaledVal), I2C::Error> {
+        let (x, y, z) = self.get_xyz()?;
+        Ok((
+            x.to_scaled(self.scale),
+            y.to_scaled(self.scale),
+            z.to_scaled(self.scale),
+        ))
     }
 
     pub fn set_scale(&mut self, scale: Scale) -> Result<(), I2C::Error> {
+        self.scale = scale;
         let mut cfg = self.read_register(Register::XYZ_DATA_CFG)?;
         cfg &= 0xFC; // mask out scale bits
         cfg |= scale as u8;
@@ -158,6 +194,46 @@ impl<I2C: I2c> Accel<I2C> {
     pub fn active(&mut self) -> Result<(), I2C::Error> {
         let ctrl_active = self.read_register(Register::CTRL_REG1)? | 0x01;
         self.write_register(Register::CTRL_REG1, ctrl_active)
+    }
+
+    pub fn setup_pl(&mut self) -> Result<(), I2C::Error> {
+        // Enable portrait/landscape detection and set debounce counter.
+        let cfg = self.read_register(Register::PL_CFG)? | 0x40;
+        self.write_register(Register::PL_CFG, cfg)?;
+        self.write_register(Register::PL_COUNT, 0x50)
+    }
+
+    pub fn setup_tap(&mut self, x_ths: u8, y_ths: u8, z_ths: u8) -> Result<(), I2C::Error> {
+        // Configure tap sensitivity per-axis; MSB disables an axis when set.
+        let mut cfg = 0u8;
+        if x_ths & 0x80 == 0 {
+            cfg |= 0x03;
+            self.write_register(Register::PULSE_THSX, x_ths)?;
+        }
+        if y_ths & 0x80 == 0 {
+            cfg |= 0x0C;
+            self.write_register(Register::PULSE_THSY, y_ths)?;
+        }
+        if z_ths & 0x80 == 0 {
+            cfg |= 0x30;
+            self.write_register(Register::PULSE_THSZ, z_ths)?;
+        }
+
+        self.write_register(Register::PULSE_CFG, cfg | 0x40)?;
+        self.write_register(Register::PULSE_TMLT, 0x30)?;
+        self.write_register(Register::PULSE_LTCY, 0xA0)?;
+        self.write_register(Register::PULSE_WIND, 0xFF)?;
+
+        self.active()
+    }
+
+    pub fn read_tap(&mut self) -> Result<Option<u8>, I2C::Error> {
+        let tap_status = self.read_register(Register::PULSE_SRC)?;
+        if tap_status & 0x80 != 0 {
+            Ok(Some(tap_status & 0x7F))
+        } else {
+            Ok(None)
+        }
     }
 
     fn read_register(&mut self, reg: Register) -> Result<u8, I2C::Error> {
