@@ -54,10 +54,10 @@ fn main() -> ! {
     let mut seg = segment_rs::SevenSeg::init(RefCellDevice::new(&i2c_cell), 0x70, 15);
 
     loop {
-        let (x, y, z) = accel.get_xyz().unwrap();
+        let (x, y, z) = accel.get_xyz_scaled().unwrap();
         info!("x: {}, y: {}, z: {}", x.0, y.0, z.0);
 
-        seg.write_int(x.0 as u16);
+        seg.write_int((x.0 * 100.0) as u16);
 
         if let Some(tap) = accel.read_tap().unwrap() {
             info!("tap detected: {:?}", tap);
