@@ -75,8 +75,6 @@ pub struct Accel<I2C: embedded_hal::i2c::I2c> {
     i2c: I2C,
 }
 
-const CTRL_REG1: u8 = 0x20;
-
 impl<I2C: I2c> Accel<I2C> {
     pub fn new(i2c: I2C, addr: u8) -> Self {
         Accel { i2c, addr }

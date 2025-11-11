@@ -12,6 +12,7 @@ use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::i2c::master::I2c;
 use esp_hal::time::{Duration, Instant};
 use esp_hal::{i2c, main};
+use esp32_segment::{Accel, OutputDataRate, Scale};
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
@@ -41,17 +42,16 @@ fn main() -> ! {
 
     info!("i2c created");
 
-    let mut b = [0u8; 1];
-    i2c.write_read(ACCEL_ADDR, &[0x0D], &mut b)
-        .expect("failed to read from accelerometer");
-
-    info!("who am i reg: {:x}", b);
+    let mut accel = Accel::new(i2c, ACCEL_ADDR);
+    accel
+        .init(Scale::Scale2G, OutputDataRate::Odr100)
+        .expect("failed to initialize accelerometer");
 
     // let mut seg = segment_rs::SevenSeg::init(i2c, 0x70, 15);
 
     loop {
-        info!("loop");
-        led.toggle();
+        let x = accel.get_x().unwrap_or(-1);
+        info!("x: {}", x);
 
         let delay_start = Instant::now();
         while delay_start.elapsed() < Duration::from_millis(100) {}
