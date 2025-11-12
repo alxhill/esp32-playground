@@ -26,6 +26,8 @@ esp-backtrace = { version = "0.18.1", features = [
 ] }
 esp-println = { version = "0.16.1", features = ["defmt-espflash", "esp32"] }
 embedded-hal-bus = "0.3.0"
+ssd1306 = "0.10.0"
+embedded-graphics = "0.8.1"
 
 
 [profile.dev]
