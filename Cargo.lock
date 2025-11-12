@@ -795,6 +795,7 @@ dependencies = [
 name = "esp32-segment"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "critical-section",
  "defmt 1.0.1",
  "embedded-graphics",

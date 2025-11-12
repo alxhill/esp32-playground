@@ -84,9 +84,9 @@ pub enum OutputDataRate {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub struct UnscaledVal(pub i16);
 
-impl From<&[u8; 2]> for UnscaledVal {
-    fn from(bytes: &[u8; 2]) -> Self {
-        UnscaledVal((bytes[0] as i16) << 8 | (bytes[1] as i16 >> 4))
+impl From<[u8; 2]> for UnscaledVal {
+    fn from(bytes: [u8; 2]) -> Self {
+        UnscaledVal(i16::from_be_bytes(bytes) >> 4)
     }
 }
 
@@ -132,33 +132,33 @@ impl<I2C: I2c> Accel<I2C> {
     }
 
     pub fn get_x(&mut self) -> Result<UnscaledVal, I2C::Error> {
-        let mut data = [0u8; 2];
+        let mut raw = [0u8; 2];
         // reads both OUT_X_MSB and OUT_X_LSB registers
-        self.read_registers(Register::OUT_X_MSB, &mut data)?;
-        Ok((&data).into())
+        self.read_registers(Register::OUT_X_MSB, &mut raw)?;
+        Ok(raw.into())
     }
 
     pub fn get_y(&mut self) -> Result<UnscaledVal, I2C::Error> {
         let mut raw = [0u8; 2];
         // reads both OUT_Y_MSB and OUT_Y_LSB registers
         self.read_registers(Register::OUT_Y_MSB, &mut raw)?;
-        Ok((&raw).into())
+        Ok(raw.into())
     }
 
     pub fn get_z(&mut self) -> Result<UnscaledVal, I2C::Error> {
         let mut raw = [0u8; 2];
         // reads both OUT_Z_MSB and OUT_Z_LSB registers
         self.read_registers(Register::OUT_Z_MSB, &mut raw)?;
-        Ok((&raw).into())
+        Ok(raw.into())
     }
 
     pub fn get_xyz(&mut self) -> Result<(UnscaledVal, UnscaledVal, UnscaledVal), I2C::Error> {
         let mut raw = [0u8; 6];
         // reads XYZ registers starting from OUT_X_MSB
         self.read_registers(Register::OUT_X_MSB, &mut raw)?;
-        let x: &[u8; 2] = raw[0..2].try_into().unwrap();
-        let y: &[u8; 2] = raw[2..4].try_into().unwrap();
-        let z: &[u8; 2] = raw[4..6].try_into().unwrap();
+        let x: [u8; 2] = raw[0..2].try_into().unwrap();
+        let y: [u8; 2] = raw[2..4].try_into().unwrap();
+        let z: [u8; 2] = raw[4..6].try_into().unwrap();
         Ok((x.into(), y.into(), z.into()))
     }
 

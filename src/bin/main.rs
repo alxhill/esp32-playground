@@ -15,6 +15,7 @@ use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::prelude::Point;
 use embedded_graphics::prelude::*;
+use embedded_graphics::primitives::{Circle, PrimitiveStyleBuilder, StyledDrawable};
 use embedded_graphics::text::{Baseline, Text};
 use embedded_hal_bus::i2c::RefCellDevice;
 use esp_hal::clock::CpuClock;
@@ -57,7 +58,7 @@ fn main() -> ! {
 
     let mut accel = Accel::new(RefCellDevice::new(&i2c_cell), ACCEL_ADDR);
     accel
-        .init(Scale::Scale4G, OutputDataRate::Odr100)
+        .init(Scale::Scale2G, OutputDataRate::Odr800)
         .expect("failed to initialize accelerometer");
 
     info!("accel init");
@@ -96,16 +97,7 @@ fn main() -> ! {
     oled.reset(&mut rst, &mut Delay::default())
         .expect("failed to reset OLED");
     oled.init().unwrap();
-    // oled.clear().unwrap();
     oled.set_display_on(true).unwrap();
-
-    // oled.write_str("hello").unwrap();
-
-    // let mut seg = segment_rs::SevenSeg::init(RefCellDevice::new(&i2c_cell), 0x70, 15);
-
-    // let raw: ImageRaw<BinaryColor> = ImageRaw::new(include_bytes!("../rust.raw"), 64);
-    // let im = Image::new(&raw, Point::new(0, 0));
-    // im.draw(&mut oled).unwrap();
 
     let text_style = MonoTextStyleBuilder::new()
         .font(&FONT_6X10)
@@ -118,20 +110,69 @@ fn main() -> ! {
 
     oled.flush().unwrap();
 
+    let delay_start = Instant::now();
+    while delay_start.elapsed() < Duration::from_millis(500) {}
+
+    let point_style = PrimitiveStyleBuilder::new()
+        .fill_color(BinaryColor::On)
+        .build();
+
+    let (width, height) = oled.dimensions();
+
+    info!("width: {}, height: {}", width, height);
+
+    let mut i = 0;
+
     loop {
-        let (x, y, z) = accel.get_xyz().unwrap();
-        info!("x: {}, y: {}, z: {}", x.0, y.0, z.0);
+        oled.clear(BinaryColor::Off).unwrap();
+
+        // let (x, y, z) = accel.get_xyz().unwrap();
+        let x = accel.get_x().unwrap();
+        let y = accel.get_y().unwrap();
+        let z = accel.get_z().unwrap();
+
+        // swapping because of the relative orientation of the accelerometer and OLED
+        let oled_x = (-y.0) / 16 + (width / 2) as i16;
+        let oled_y = (-x.0) / 16 + (height / 2) as i16;
+        let oled_size = z.0 / 32;
+
+        if i % 100 == 0 {
+            info!(
+                "x: {}, y: {}, z: {} | oled_x: {}, oled_y: {}",
+                x.0, y.0, z.0, oled_x, oled_y
+            );
+        }
+        i += 1;
+
+        Circle::with_center(
+            Point::new(oled_x as i32, oled_y as i32),
+            oled_size.clamp(1, 15) as u32,
+        )
+        .draw_styled(&point_style, &mut oled)
+        .unwrap();
+
+        // Text::with_baseline(
+        //     ".",
+        //     Point::new(oled_x as i32, oled_y as i32),
+        //     text_style,
+        //     Baseline::Top,
+        // )
+        // .draw(&mut oled)
+        // .unwrap();
+
+        oled.flush().unwrap();
+
         // write!(oled, "{}", x.0).unwrap();
 
         // oled.flush().unwrap();
 
         // seg.write_int((x.0 * x.0.signum()) as u16);
 
-        if let Some(tap) = accel.read_tap().unwrap() {
-            info!("tap detected: {:?}", tap);
-        }
+        // if let Some(tap) = accel.read_tap().unwrap() {
+        //     info!("tap detected: {:?}", tap);
+        // }
 
-        let delay_start = Instant::now();
-        while delay_start.elapsed() < Duration::from_millis(50) {}
+        // let delay_start = Instant::now();
+        // while delay_start.elapsed() < Duration::from_millis(50) {}
     }
 }

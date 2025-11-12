@@ -28,6 +28,7 @@ esp-println = { version = "0.16.1", features = ["defmt-espflash", "esp32"] }
 embedded-hal-bus = "0.3.0"
 ssd1306 = "0.10.0"
 embedded-graphics = "0.8.1"
+bytemuck = "1.24.0"
 
 
 [profile.dev]
