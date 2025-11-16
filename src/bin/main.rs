@@ -9,7 +9,6 @@
 use core::cell::RefCell;
 
 use defmt::info;
-use embedded_graphics::image::{Image, ImageRaw};
 use embedded_graphics::mono_font::MonoTextStyleBuilder;
 use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::pixelcolor::BinaryColor;
@@ -74,7 +73,6 @@ fn main() -> ! {
     .expect("failed to initialize SPI")
     .with_sck(sck)
     .with_mosi(mosi);
-    // .with_cs(cs);
 
     let spi_dev = embedded_hal_bus::spi::ExclusiveDevice::new_no_delay(spi, cs).unwrap();
 
@@ -126,6 +124,7 @@ fn main() -> ! {
     loop {
         oled.clear(BinaryColor::Off).unwrap();
 
+        // for some reason the z value and x value are the same when reading all registers at the same time
         // let (x, y, z) = accel.get_xyz().unwrap();
         let x = accel.get_x().unwrap();
         let y = accel.get_y().unwrap();
@@ -138,8 +137,8 @@ fn main() -> ! {
 
         if i % 100 == 0 {
             info!(
-                "x: {}, y: {}, z: {} | oled_x: {}, oled_y: {}",
-                x.0, y.0, z.0, oled_x, oled_y
+                "x: {}, y: {}, z: {} | oled_x: {}, oled_y: {}, oled_size: {}",
+                x.0, y.0, z.0, oled_x, oled_y, oled_size
             );
         }
         i += 1;
@@ -151,28 +150,6 @@ fn main() -> ! {
         .draw_styled(&point_style, &mut oled)
         .unwrap();
 
-        // Text::with_baseline(
-        //     ".",
-        //     Point::new(oled_x as i32, oled_y as i32),
-        //     text_style,
-        //     Baseline::Top,
-        // )
-        // .draw(&mut oled)
-        // .unwrap();
-
         oled.flush().unwrap();
-
-        // write!(oled, "{}", x.0).unwrap();
-
-        // oled.flush().unwrap();
-
-        // seg.write_int((x.0 * x.0.signum()) as u16);
-
-        // if let Some(tap) = accel.read_tap().unwrap() {
-        //     info!("tap detected: {:?}", tap);
-        // }
-
-        // let delay_start = Instant::now();
-        // while delay_start.elapsed() < Duration::from_millis(50) {}
     }
 }
