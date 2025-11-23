@@ -9,23 +9,11 @@
 use core::cell::RefCell;
 
 use defmt::info;
-use embedded_graphics::mono_font::MonoTextStyleBuilder;
-use embedded_graphics::mono_font::ascii::FONT_6X10;
-use embedded_graphics::pixelcolor::BinaryColor;
-use embedded_graphics::prelude::Point;
-use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::{Circle, PrimitiveStyleBuilder, StyledDrawable};
-use embedded_graphics::text::{Baseline, Text};
 use embedded_hal_bus::i2c::RefCellDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
-use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::i2c::master::I2c;
-use esp_hal::time::{Duration, Instant, Rate};
-use esp_hal::{gpio, i2c, main, spi};
-use esp32_segment::{Accel, OutputDataRate, Scale};
-use ssd1306::Ssd1306;
-use ssd1306::prelude::*;
+use esp_hal::{i2c, main};
 
 use {esp_backtrace as _, esp_println as _};
 
