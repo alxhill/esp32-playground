@@ -58,7 +58,7 @@ fn main() -> ! {
 
     loop {
         let x = accel.get_x().unwrap();
-        seg.write_int(x.0 as u16);
+        seg.write_int(x.0.abs() as u16);
 
         delay.delay_millis(50);
     }
