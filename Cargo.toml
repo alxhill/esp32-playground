@@ -1,12 +1,8 @@
 [package]
-edition      = "2024"
-name         = "esp32-segment"
+edition = "2024"
+name = "esp32-playground"
 rust-version = "1.88"
-version      = "0.1.0"
-
-[[bin]]
-name = "esp32-segment"
-path = "./src/bin/main.rs"
+version = "0.1.0"
 
 [dependencies]
 esp-hal = { version = "1.0.0", features = ["defmt", "esp32", "unstable"] }
@@ -14,7 +10,7 @@ embedded-hal = "1"
 
 segment-rs = { git = "https://github.com/alxhill/segment-rs.git" }
 
-defmt                  = "1.0.1"
+defmt = "1.0.1"
 esp-bootloader-esp-idf = { version = "0.4.0", features = ["defmt", "esp32"] }
 
 critical-section = "1.2.0"
@@ -39,10 +35,10 @@ max170xx = "1.0.0"
 opt-level = "s"
 
 [profile.release]
-codegen-units    = 1     # LLVM can perform better optimizations using a single thread
-debug            = 2
+codegen-units = 1        # LLVM can perform better optimizations using a single thread
+debug = 2
 debug-assertions = false
-incremental      = false
-lto              = 'fat'
-opt-level        = 's'
-overflow-checks  = false
+incremental = false
+lto = 'fat'
+opt-level = 's'
+overflow-checks = false

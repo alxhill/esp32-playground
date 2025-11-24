@@ -792,7 +792,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "esp32-segment"
+name = "esp32-playground"
 version = "0.1.0"
 dependencies = [
  "bytemuck",

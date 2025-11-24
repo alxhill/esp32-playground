@@ -14,7 +14,7 @@ use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
 use esp_hal::i2c::master::I2c;
 use esp_hal::{i2c, main};
-use esp32_segment::{Accel, Scale};
+use esp32_playground::{Accel, OutputDataRate, Scale};
 
 use {esp_backtrace as _, esp_println as _};
 
@@ -50,13 +50,11 @@ fn main() -> ! {
 
     let mut accel = Accel::new(RefCellDevice::new(&i2c_cell), ACCEL_ADDR);
 
-    accel
-        .init(Scale::Scale2G, esp32_segment::OutputDataRate::Odr800)
-        .unwrap();
+    accel.init(Scale::Scale2G, OutputDataRate::Odr800).unwrap();
 
     loop {
         let x = accel.get_x().unwrap();
-        seg.write_int(x.0.abs() as u16);
+        seg.write_int(x.0);
 
         delay.delay_millis(100);
     }

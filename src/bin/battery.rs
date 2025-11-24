@@ -15,7 +15,7 @@ use esp_hal::delay::Delay;
 use esp_hal::i2c::master::I2c;
 use esp_hal::rom::rtc_get_reset_reason;
 use esp_hal::rtc_cntl::Rtc;
-use esp_hal::rtc_cntl::sleep::{Ext0WakeupSource, RtcSleepConfig, TimerWakeupSource};
+use esp_hal::rtc_cntl::sleep::{RtcSleepConfig, TimerWakeupSource};
 use esp_hal::system::reset_reason;
 use esp_hal::{i2c, main, ram};
 use max170xx::Max17048;

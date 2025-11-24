@@ -23,7 +23,7 @@ use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::i2c::master::I2c;
 use esp_hal::time::{Duration, Instant, Rate};
 use esp_hal::{gpio, i2c, main, spi};
-use esp32_segment::{Accel, OutputDataRate, Scale};
+use esp32_playground::{Accel, OutputDataRate, Scale};
 use ssd1306::Ssd1306;
 use ssd1306::prelude::*;
 
