@@ -13,9 +13,11 @@ use embedded_hal_bus::i2c::RefCellDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
 use esp_hal::i2c::master::I2c;
+use esp_hal::rom::rtc_get_reset_reason;
 use esp_hal::rtc_cntl::Rtc;
-use esp_hal::rtc_cntl::sleep::TimerWakeupSource;
-use esp_hal::{i2c, main};
+use esp_hal::rtc_cntl::sleep::{Ext0WakeupSource, RtcSleepConfig, TimerWakeupSource};
+use esp_hal::system::reset_reason;
+use esp_hal::{i2c, main, ram};
 use max170xx::Max17048;
 use segment_rs::{Digit, Seg, segs};
 
@@ -26,6 +28,9 @@ extern crate alloc;
 esp_bootloader_esp_idf::esp_app_desc!();
 
 const SEG_ADDR: u8 = 0x70;
+
+#[ram(unstable(rtc_slow), unstable(persistent))]
+static mut LOOP_COUNT: [u8; 2] = [0; 2];
 
 #[main]
 fn main() -> ! {
@@ -38,6 +43,14 @@ fn main() -> ! {
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 98768);
 
     info!("init");
+
+    if let Some(reason) = reset_reason() {
+        info!("reset reason: {}", reason as u8);
+    } else {
+        info!("No reset reason");
+    }
+
+    info!("RTC reset reason: {:?}", rtc_get_reset_reason(0));
 
     let i2c = I2c::new(peripherals.I2C0, i2c::master::Config::default())
         .expect("failed to initialize I2C")
@@ -59,43 +72,55 @@ fn main() -> ! {
 
     info!("battery initialized");
 
-    let mut loops = 0;
+    let loops = unsafe { LOOP_COUNT[0] };
+    info!("loop: {}", loops);
+    seg.write_uint(loops as u16);
 
-    loop {
-        info!("loop: {}", loops);
-        seg.write_uint(loops);
-        loops += 1;
-        delay.delay_millis(3000);
-
-        info!("charge rate: {}", bat.charge_rate().unwrap());
-        seg.write_percent(bat.charge_rate().unwrap().abs());
-        delay.delay_millis(2000);
-        let soc = bat.soc().unwrap();
-        info!("soc: {}", soc);
-        if soc > 100.0 {
-            seg.write_uint(soc as u16);
-        } else {
-            seg.write_percent(soc);
-        }
-        delay.delay_millis(2000);
-
-        let voltage = bat.voltage().unwrap();
-        info!("voltage: {}", voltage);
-        seg.write(
-            0,
-            (Digit::from_u16(voltage as u16), Seg::Dot),
-            Digit::from_u16(((voltage * 10.0) as u16) % 10),
-            v_segs,
-            false,
-        );
-        delay.delay_millis(2000);
-
-        seg.clear();
-
-        delay.delay_millis(100);
-
-        rtc.sleep_light(&[&TimerWakeupSource::new(core::time::Duration::from_secs(10))]);
-
-        delay.delay_millis(100);
+    unsafe {
+        LOOP_COUNT[0] = LOOP_COUNT[0].wrapping_add(1);
     }
+
+    delay.delay_millis(3000);
+
+    info!("charge rate: {}", bat.charge_rate().unwrap());
+    seg.write_percent(bat.charge_rate().unwrap().abs());
+    delay.delay_millis(2000);
+    let soc = bat.soc().unwrap();
+    info!("soc: {}", soc);
+    if soc > 100.0 {
+        seg.write_uint(soc as u16);
+    } else {
+        seg.write_percent(soc);
+    }
+    delay.delay_millis(2000);
+
+    Ext0WakeupSource::new(
+        peripherals.GPIO4,
+        esp_hal::rtc_cntl::sleep::WakeupLevel::High,
+    );
+
+    let voltage = bat.voltage().unwrap();
+    info!("voltage: {}", voltage);
+    seg.write(
+        0,
+        (Digit::from_u16(voltage as u16), Seg::Dot),
+        Digit::from_u16(((voltage * 10.0) as u16) % 10),
+        v_segs,
+        false,
+    );
+    delay.delay_millis(2000);
+
+    seg.clear();
+
+    delay.delay_millis(100);
+
+    let mut sleep_cfg = RtcSleepConfig::deep();
+    // sleep_cfg.set_rtc_fastmem_pd_en(false);
+    sleep_cfg.set_rtc_slowmem_pd_en(false);
+
+    rtc.sleep(
+        &sleep_cfg,
+        &[&TimerWakeupSource::new(core::time::Duration::from_secs(10))],
+    );
+    unreachable!();
 }
