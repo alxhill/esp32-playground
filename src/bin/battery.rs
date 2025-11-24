@@ -13,10 +13,9 @@ use embedded_hal_bus::i2c::RefCellDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
 use esp_hal::i2c::master::I2c;
-use esp_hal::rtc_cntl::Rtc;
 use esp_hal::{i2c, main};
-use esp32_segment::{Accel, Scale};
 use max170xx::Max17048;
+use segment_rs::{Digit, Seg, segs};
 
 use {esp_backtrace as _, esp_println as _};
 
@@ -25,7 +24,6 @@ extern crate alloc;
 esp_bootloader_esp_idf::esp_app_desc!();
 
 const SEG_ADDR: u8 = 0x70;
-const ACCEL_ADDR: u8 = 0x1D;
 
 #[main]
 fn main() -> ! {
@@ -47,23 +45,39 @@ fn main() -> ! {
     info!("i2c created");
 
     let mut seg = segment_rs::SevenSeg::init(RefCellDevice::new(&i2c_cell), SEG_ADDR);
+    seg.set_brightness(5);
 
     info!("seg display created");
 
     let mut bat = Max17048::new(RefCellDevice::new(&i2c_cell));
     bat.quickstart().unwrap();
 
+    let v_segs = segs!(Seg::TopL, Seg::BotL, Seg::Bot, Seg::BotR, Seg::TopR);
+
     info!("battery initialized");
 
     loop {
-        info!("charge rate");
-        seg.write_int(bat.charge_rate().unwrap() as u16);
+        info!("charge rate: {}", bat.charge_rate().unwrap());
+        seg.write_percent(bat.charge_rate().unwrap().abs());
         delay.delay_millis(2000);
-        info!("soc");
-        seg.write_int(bat.soc().unwrap() as u16);
+        let soc = bat.soc().unwrap();
+        info!("soc: {}", soc);
+        if soc > 100.0 {
+            seg.write_uint(soc as u16);
+        } else {
+            seg.write_percent(soc);
+        }
         delay.delay_millis(2000);
-        info!("voltage");
-        seg.write_int(bat.voltage().unwrap() as u16);
+
+        let voltage = bat.voltage().unwrap();
+        info!("voltage: {}", voltage);
+        seg.write(
+            0,
+            (Digit::from_u16(voltage as u16), Seg::Dot),
+            Digit::from_u16((voltage * 10.0) as u16),
+            v_segs,
+            false,
+        );
         delay.delay_millis(2000);
     }
 }
