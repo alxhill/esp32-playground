@@ -13,6 +13,8 @@ use embedded_hal_bus::i2c::RefCellDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
 use esp_hal::i2c::master::I2c;
+use esp_hal::rtc_cntl::Rtc;
+use esp_hal::rtc_cntl::sleep::TimerWakeupSource;
 use esp_hal::{i2c, main};
 use max170xx::Max17048;
 use segment_rs::{Digit, Seg, segs};
@@ -30,6 +32,7 @@ fn main() -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
+    let mut rtc = Rtc::new(peripherals.LPWR);
     let delay = Delay::new();
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 98768);
@@ -56,7 +59,14 @@ fn main() -> ! {
 
     info!("battery initialized");
 
+    let mut loops = 0;
+
     loop {
+        info!("loop: {}", loops);
+        seg.write_uint(loops);
+        loops += 1;
+        delay.delay_millis(3000);
+
         info!("charge rate: {}", bat.charge_rate().unwrap());
         seg.write_percent(bat.charge_rate().unwrap().abs());
         delay.delay_millis(2000);
@@ -79,5 +89,13 @@ fn main() -> ! {
             false,
         );
         delay.delay_millis(2000);
+
+        seg.clear();
+
+        delay.delay_millis(100);
+
+        rtc.sleep_light(&[&TimerWakeupSource::new(core::time::Duration::from_secs(10))]);
+
+        delay.delay_millis(100);
     }
 }

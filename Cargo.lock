@@ -1363,7 +1363,7 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 [[package]]
 name = "segment-rs"
 version = "0.1.0"
-source = "git+https://github.com/alxhill/segment-rs.git#8fbd03cdb04e4cff89dfc9fd5b32d16ae55dd260"
+source = "git+https://github.com/alxhill/segment-rs.git#b28514f1c028ce9d8b54c13d644e51d9f09a5825"
 dependencies = [
  "arduino-hal",
  "bytemuck",
