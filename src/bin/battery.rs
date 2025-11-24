@@ -29,7 +29,7 @@ esp_bootloader_esp_idf::esp_app_desc!();
 
 const SEG_ADDR: u8 = 0x70;
 
-#[ram(unstable(rtc_slow), unstable(persistent))]
+#[ram(unstable(rtc_slow, persistent))]
 static mut LOOP_COUNT: [u8; 2] = [0; 2];
 
 #[main]
@@ -94,11 +94,6 @@ fn main() -> ! {
     }
     delay.delay_millis(2000);
 
-    Ext0WakeupSource::new(
-        peripherals.GPIO4,
-        esp_hal::rtc_cntl::sleep::WakeupLevel::High,
-    );
-
     let voltage = bat.voltage().unwrap();
     info!("voltage: {}", voltage);
     seg.write(
@@ -120,7 +115,7 @@ fn main() -> ! {
 
     rtc.sleep(
         &sleep_cfg,
-        &[&TimerWakeupSource::new(core::time::Duration::from_secs(10))],
+        &[&TimerWakeupSource::new(core::time::Duration::from_secs(60))],
     );
     unreachable!();
 }
