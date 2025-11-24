@@ -13,8 +13,10 @@ use embedded_hal_bus::i2c::RefCellDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
 use esp_hal::i2c::master::I2c;
+use esp_hal::rtc_cntl::Rtc;
 use esp_hal::{i2c, main};
 use esp32_segment::{Accel, Scale};
+use max170xx::Max17048;
 
 use {esp_backtrace as _, esp_println as _};
 
@@ -34,7 +36,7 @@ fn main() -> ! {
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 98768);
 
-    info!("Init");
+    info!("init");
 
     let i2c = I2c::new(peripherals.I2C0, i2c::master::Config::default())
         .expect("failed to initialize I2C")
@@ -48,16 +50,20 @@ fn main() -> ! {
 
     info!("seg display created");
 
-    let mut accel = Accel::new(RefCellDevice::new(&i2c_cell), ACCEL_ADDR);
+    let mut bat = Max17048::new(RefCellDevice::new(&i2c_cell));
+    bat.quickstart().unwrap();
 
-    accel
-        .init(Scale::Scale2G, esp32_segment::OutputDataRate::Odr800)
-        .unwrap();
+    info!("battery initialized");
 
     loop {
-        let x = accel.get_x().unwrap();
-        seg.write_int(x.0.abs() as u16);
-
-        delay.delay_millis(100);
+        info!("charge rate");
+        seg.write_int(bat.charge_rate().unwrap() as u16);
+        delay.delay_millis(2000);
+        info!("soc");
+        seg.write_int(bat.soc().unwrap() as u16);
+        delay.delay_millis(2000);
+        info!("voltage");
+        seg.write_int(bat.voltage().unwrap() as u16);
+        delay.delay_millis(2000);
     }
 }
