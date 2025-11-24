@@ -74,7 +74,7 @@ fn main() -> ! {
         seg.write(
             0,
             (Digit::from_u16(voltage as u16), Seg::Dot),
-            Digit::from_u16((voltage * 10.0) as u16),
+            Digit::from_u16(((voltage * 10.0) as u16) % 10),
             v_segs,
             false,
         );
