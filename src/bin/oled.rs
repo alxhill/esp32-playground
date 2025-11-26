@@ -70,8 +70,8 @@ fn main() -> ! {
         .into_buffered_graphics_mode();
 
     info!("oled");
-    // oled.reset(&mut rst, &mut Delay::default())
-    //     .expect("failed to reset OLED");
+    oled.reset(&mut rst, &mut Delay::default())
+        .expect("failed to reset OLED");
     if let Err(e) = oled.init() {
         error!("Failed to initialize OLED: {:?}", e);
         loop {}
