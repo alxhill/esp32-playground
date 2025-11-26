@@ -9,6 +9,7 @@
 use core::cell::RefCell;
 
 use core::fmt::Write;
+use defmt::error;
 use defmt::info;
 use embedded_graphics::mono_font::MonoTextStyleBuilder;
 use embedded_graphics::mono_font::ascii::*;
@@ -34,7 +35,7 @@ extern crate alloc;
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
-const OLED_ADDR: u8 = 0x3D;
+const OLED_ADDR: u8 = 0x3C;
 
 #[main]
 fn main() -> ! {
@@ -55,8 +56,6 @@ fn main() -> ! {
 
     info!("i2c created");
 
-    info!("accel init");
-
     let mut rst = Output::new(
         peripherals.GPIO4,
         gpio::Level::Low,
@@ -65,12 +64,23 @@ fn main() -> ! {
 
     let interface = I2CInterface::new(RefCellDevice::new(&i2c_cell), OLED_ADDR, 0x40);
 
-    let mut oled = Ssd1306::new(interface, DisplaySize64x48, DisplayRotation::Rotate180)
+    info!("iface");
+
+    let mut oled = Ssd1306::new(interface, DisplaySize128x32, DisplayRotation::Rotate0)
         .into_buffered_graphics_mode();
-    oled.reset(&mut rst, &mut Delay::default())
-        .expect("failed to reset OLED");
-    oled.init().unwrap();
+
+    info!("oled");
+    // oled.reset(&mut rst, &mut Delay::default())
+    //     .expect("failed to reset OLED");
+    if let Err(e) = oled.init() {
+        error!("Failed to initialize OLED: {:?}", e);
+        loop {}
+    }
+
+    info!("oled initialized");
     oled.set_display_on(true).unwrap();
+
+    info!("oled on");
 
     let text_style = MonoTextStyleBuilder::new()
         .font(&FONT_5X7)
