@@ -66,7 +66,7 @@ fn main() -> ! {
 
     info!("iface");
 
-    let mut oled = Ssd1306::new(interface, DisplaySize128x32, DisplayRotation::Rotate0)
+    let mut oled = Ssd1306::new(interface, DisplaySize64x48, DisplayRotation::Rotate0)
         .into_buffered_graphics_mode();
 
     info!("oled");
