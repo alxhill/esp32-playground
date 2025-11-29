@@ -6,6 +6,7 @@
     holding buffers for the duration of a data transfer."
 )]
 
+use defmt::info;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
 use esp_hal::gpio::{Level, Output, OutputConfig};
@@ -26,9 +27,11 @@ fn main() -> ! {
 
     let mut led = Output::new(peripherals.GPIO13, Level::High, OutputConfig::default());
 
+    let mut count = 0;
     loop {
         led.toggle();
-
+        info!("LED toggle count {}", count);
         Delay::new().delay_millis(1000);
+        count += 1;
     }
 }
