@@ -37,7 +37,7 @@ fn main() -> ! {
         rx_pin,
         tx_pin,
         timing,
-        can::TwaiMode::SelfTest,
+        can::TwaiMode::Normal,
     );
 
     let mut can = can_conf.start();
@@ -45,20 +45,34 @@ fn main() -> ! {
 
     let mut count = 0;
     loop {
-        led.toggle();
+        // led.toggle();
         let frame = EspTwaiFrame::new(
             can::StandardId::new(1).unwrap(),
-            &[count, 1, 2, 3, 4, 5, 6, 7],
+            &[count, count, 2, 3, 4, 5, 6, 7],
         )
         .unwrap();
 
-        match can.transmit(&frame) {
-            Ok(_) => info!("transmitted frame {}", count),
-            Err(error) => warn!("failed to transmit frame {}: {}", count, error),
+        loop {
+            match can.transmit(&frame) {
+                Ok(_) => {
+                    info!("transmitted frame {}", count);
+                    break;
+                }
+                Err(nb::Error::WouldBlock) => {
+                    warn!("blocking");
+                    led.set_high();
+                    Delay::new().delay(Duration::from_millis(5));
+                }
+                Err(error) => {
+                    warn!("failed to transmit frame {}: {}", count, error);
+                    break;
+                }
+            }
         }
+        led.set_low();
 
         count = count.wrapping_add(1);
 
-        Delay::new().delay(Duration::from_millis(100));
+        Delay::new().delay(Duration::from_millis(10));
     }
 }
